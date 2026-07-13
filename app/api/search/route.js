@@ -1,7 +1,14 @@
 import { MOCK_ARTICLES, CATEGORIES } from '../../../lib/mockArticles';
 
 function stripTags(str = '') {
-  return str.replace(/<[^>]*>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'");
+  return str
+    .replace(/<[^>]*>/g, '')
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&nbsp;/g, ' ');
 }
 
 function splitToPoints(text) {
@@ -45,7 +52,7 @@ async function searchNaver({ query, sort, category, catLabel }) {
       summary,
       points: splitToPoints(summary),
       tag: catLabel ? `#${catLabel}` : '#뉴스',
-      link: item.link,
+      link: item.originallink || item.link,
     };
   });
 }

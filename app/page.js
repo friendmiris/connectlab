@@ -138,10 +138,27 @@ export default function Home() {
     }
   }
 
-  function openEditor(a) {
+  async function openEditor(a) {
     setArticle(a);
     setCards(buildCards(a, magazine));
     setView('editor');
+    if (a.kind !== 'news') return; // cleanup is tuned for Naver snippets; skip for other sources for now
+    try {
+      const res = await fetch('/api/cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: a.title, summary: a.summary }),
+      });
+      const data = await res.json();
+      if (data.mode === 'live' && data.summary && data.points) {
+        const cleaned = { ...a, summary: data.summary, points: data.points };
+        setArticle(cleaned);
+        setCards(buildCards(cleaned, magazine));
+        showToast('AI로 카드 내용을 다듬었어요');
+      }
+    } catch (e) {
+      // silently keep the original regex-split version
+    }
   }
 
   function regen() {
