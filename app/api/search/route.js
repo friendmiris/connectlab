@@ -24,6 +24,32 @@ function splitToPoints(text) {
 }
 
 // ---------- Naver News ----------
+function normalizeForCompare(title) {
+  return title
+    .replace(/["'“”‘’\[\]〈〉《》\(\)…·,.!?]/g, '')
+    .trim();
+}
+
+function titleSimilarity(a, b) {
+  const wordsA = new Set(normalizeForCompare(a).split(/\s+/).filter((w) => w.length > 1));
+  const wordsB = new Set(normalizeForCompare(b).split(/\s+/).filter((w) => w.length > 1));
+  if (!wordsA.size || !wordsB.size) return 0;
+  let overlap = 0;
+  wordsA.forEach((w) => { if (wordsB.has(w)) overlap++; });
+  return overlap / Math.min(wordsA.size, wordsB.size);
+}
+
+// Different outlets often cover the exact same story with near-identical titles.
+// Keep only the first (most relevant/recent, since results already came sorted) of each cluster.
+function dedupeBySimilarTitle(articles, threshold = 0.6) {
+  const kept = [];
+  for (const article of articles) {
+    const isDuplicate = kept.some((k) => titleSimilarity(k.title, article.title) >= threshold);
+    if (!isDuplicate) kept.push(article);
+  }
+  return kept;
+}
+
 async function searchNaver({ query, sort, category, catLabel }) {
   const clientId = process.env.NAVER_CLIENT_ID;
   const clientSecret = process.env.NAVER_CLIENT_SECRET;
@@ -38,7 +64,7 @@ async function searchNaver({ query, sort, category, catLabel }) {
   });
   if (!res.ok) throw new Error('naver api error ' + res.status);
   const data = await res.json();
-  return (data.items || []).map((item, i) => {
+  const mapped = (data.items || []).map((item, i) => {
     const title = stripTags(item.title);
     const summary = stripTags(item.description);
     return {
@@ -55,6 +81,7 @@ async function searchNaver({ query, sort, category, catLabel }) {
       link: item.originallink || item.link,
     };
   });
+  return dedupeBySimilarTitle(mapped);
 }
 
 // ---------- YouTube ----------

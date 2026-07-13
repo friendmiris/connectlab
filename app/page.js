@@ -76,9 +76,13 @@ function buildCards(article, magazine) {
   const cards = [];
   cards.push({ type: 'cover', label: 'COVER', title: article.title, text: article.summary || magazine.tagline, custom: null, aiImage: null, aiState: 'idle' });
 
-  // Merge points into at most 2 body cards so the whole set stays at 3-4 cards total,
-  // and de-duplicate so a short snippet with only 1 real sentence doesn't repeat itself.
-  const uniquePoints = [...new Set((article.points || []).map((p) => p.trim()).filter(Boolean))];
+  // Merge points into at most 2 body cards so the whole set stays at 3-4 cards total.
+  // Also drop any point that's basically the same text as the cover summary (happens when
+  // a short Naver snippet only has one sentence total) so we don't show the same content twice.
+  const normalize = (s) => s.replace(/\s+/g, '').replace(/[.!?…]+$/, '');
+  const coverText = normalize(article.summary || '');
+  const uniquePoints = [...new Set((article.points || []).map((p) => p.trim()).filter(Boolean))]
+    .filter((p) => normalize(p) !== coverText);
   const mid = Math.ceil(uniquePoints.length / 2);
   const groups = [uniquePoints.slice(0, mid), uniquePoints.slice(mid)].filter((g) => g.length > 0);
   groups.forEach((g, gi) => {
@@ -104,6 +108,7 @@ export default function Home() {
   const [article, setArticle] = useState(null);
   const [cards, setCards] = useState([]);
   const [imageMode, setImageMode] = useState('ai');
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const [magazine, setMagazine] = useState({ name: 'MY MAGAZINE', tagline: '오늘의 이야기를 오려 담다', color: '#8C2F39', hashtags: '#매거진, #카드뉴스, #클리핑' });
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -166,6 +171,16 @@ export default function Home() {
     showToast('카드뉴스를 다시 만들었어요');
   }
 
+  function preloadImage(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(url);
+      img.onerror = () => reject(new Error('image failed to load'));
+      img.src = url;
+    });
+  }
+
   async function generateIllustration(idx) {
     setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, aiState: 'loading' } : c)));
     try {
@@ -176,12 +191,21 @@ export default function Home() {
         body: JSON.stringify({ prompt }),
       });
       const data = await res.json();
+      if (!data.image) {
+        setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, aiState: 'demo' } : c)));
+        showToast('이미지 생성에 실패해서 미리보기로 대체했어요');
+        return;
+      }
+      // Pollinations can take several seconds to actually render - wait for the browser
+      // to finish loading it before showing it as ready, otherwise a quick download
+      // afterwards would capture a blank image.
+      await preloadImage(data.image);
       setCards((prev) =>
-        prev.map((c, i) => (i === idx ? { ...c, aiImage: data.image, aiProvider: data.provider, aiState: data.image ? 'live' : 'demo' } : c))
+        prev.map((c, i) => (i === idx ? { ...c, aiImage: data.image, aiProvider: data.provider, aiState: 'live' } : c))
       );
-      if (!data.image) showToast('이미지 생성에 실패해서 미리보기로 대체했어요');
     } catch (e) {
       setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, aiState: 'demo' } : c)));
+      showToast('이미지를 불러오지 못했어요, 다시 시도해주세요');
     }
   }
 
@@ -191,6 +215,7 @@ export default function Home() {
       const q = `${catInfo(article.cat).label} ${cards[idx].title}`.slice(0, 60);
       const res = await fetch(`/api/stock?q=${encodeURIComponent(q)}&seed=${article.id}-${idx}`);
       const data = await res.json();
+      await preloadImage(data.image);
       setCards((prev) =>
         prev.map((c, i) => (i === idx ? { ...c, stockImage: data.image, stockMode: data.mode, stockState: 'done' } : c))
       );
@@ -199,6 +224,17 @@ export default function Home() {
       setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, stockState: 'error' } : c)));
       showToast('이미지를 불러오지 못했어요');
     }
+  }
+
+  async function loadAllImages() {
+    setBulkLoading(true);
+    for (let idx = 0; idx < cards.length; idx++) {
+      const card = cards[idx];
+      if (card.custom) continue;
+      if (imageMode === 'ai' && !card.aiImage) await generateIllustration(idx);
+      if (imageMode === 'stock' && !card.stockImage) await fetchStockPhoto(idx);
+    }
+    setBulkLoading(false);
   }
 
   function uploadImage(idx, file) {
@@ -210,9 +246,25 @@ export default function Home() {
     reader.readAsDataURL(file);
   }
 
+  function waitForNodeImages(node) {
+    const imgs = Array.from(node.querySelectorAll('img'));
+    return Promise.all(
+      imgs.map((img) =>
+        img.complete && img.naturalWidth > 0
+          ? Promise.resolve()
+          : new Promise((resolve) => {
+              img.addEventListener('load', resolve, { once: true });
+              img.addEventListener('error', resolve, { once: true });
+              setTimeout(resolve, 8000);
+            })
+      )
+    );
+  }
+
   async function downloadCard(idx) {
     const html2canvas = (await import('html2canvas')).default;
     const node = document.getElementById('card-' + idx);
+    await waitForNodeImages(node);
     const canvas = await html2canvas(node, { scale: 3, backgroundColor: '#ffffff', useCORS: true, allowTaint: false });
     const link = document.createElement('a');
     link.download = `card-${idx + 1}.png`;
@@ -227,6 +279,7 @@ export default function Home() {
     const zip = new JSZip();
     for (let idx = 0; idx < cards.length; idx++) {
       const node = document.getElementById('card-' + idx);
+      await waitForNodeImages(node);
       const canvas = await html2canvas(node, { scale: 3, backgroundColor: '#ffffff', useCORS: true, allowTaint: false });
       const data = canvas.toDataURL('image/png').split(',')[1];
       zip.file(`card-${idx + 1}.png`, data, { base64: true });
@@ -294,7 +347,7 @@ export default function Home() {
               </div>
 
               <div className="cat-row" style={{ marginTop: -8 }}>
-                {[{ id: 'news', label: '📰 뉴스' }, { id: 'youtube', label: '▶ 유튜브' }, { id: 'google', label: '🔍 구글' }].map((s) => (
+                {[{ id: 'news', label: '📰 뉴스' }, { id: 'youtube', label: '▶ 유튜브' }].map((s) => (
                   <button key={s.id} className={'cat-pill' + (sourceKind === s.id ? ' selected' : '')} onClick={() => setSourceKind(s.id)}>
                     {s.label}
                   </button>
@@ -400,6 +453,11 @@ export default function Home() {
               ))}
             </div>
             <p className="mode-hint">{IMG_MODES.find((m) => m.id === imageMode).hint}</p>
+            {(imageMode === 'ai' || imageMode === 'stock') && (
+              <button className="btn" style={{ marginBottom: 16 }} disabled={bulkLoading} onClick={loadAllImages}>
+                {bulkLoading ? '카드마다 이미지 불러오는 중...' : `카드 ${cards.length}장 이미지 한 번에 불러오기`}
+              </button>
+            )}
 
             <div className="filmstrip">
               {cards.map((card, idx) => (
