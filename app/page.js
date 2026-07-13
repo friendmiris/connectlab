@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 import { CATEGORIES, KEYWORDS } from '../lib/mockArticles';
 
 const IMG_MODES = [
-  { id: 'ai', label: '🖌 AI 일러스트', hint: '카드마다 "AI 일러스트 생성" 버튼을 누르면 실제 이미지 생성 API를 호출해요. OPENAI_API_KEY가 설정돼 있지 않으면 대신 미리보기용 목업이 표시돼요.' },
+  { id: 'ai', label: '🖌 AI 일러스트', hint: '카드마다 "AI 일러스트 생성" 버튼을 누르면 진짜 이미지가 생성돼요. 키 없이 무료(Pollinations.ai)로 동작하고, OPENAI_API_KEY를 넣으면 더 고품질 유료 생성으로 바뀌어요.' },
   { id: 'stock', label: '📷 무료 스톡 사진', hint: '카드마다 "관련 이미지 불러오기" 버튼을 누르면 Unsplash에서 키워드에 맞는 사진을 찾아와요. UNSPLASH_ACCESS_KEY가 없으면 키워드와 무관한 예시 이미지로 대체돼요.' },
   { id: 'none', label: '⬆ 직접 업로드', hint: '저작권 걱정 없이 내가 가진 사진을 카드마다 직접 올릴 수 있어요.' },
 ];
@@ -177,9 +177,9 @@ export default function Home() {
       });
       const data = await res.json();
       setCards((prev) =>
-        prev.map((c, i) => (i === idx ? { ...c, aiImage: data.image, aiState: data.image ? 'live' : 'demo' } : c))
+        prev.map((c, i) => (i === idx ? { ...c, aiImage: data.image, aiProvider: data.provider, aiState: data.image ? 'live' : 'demo' } : c))
       );
-      if (!data.image) showToast('OPENAI_API_KEY가 없어서 미리보기로 대체했어요');
+      if (!data.image) showToast('이미지 생성에 실패해서 미리보기로 대체했어요');
     } catch (e) {
       setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, aiState: 'demo' } : c)));
     }
@@ -416,7 +416,7 @@ export default function Home() {
                         card.aiImage ? (
                           <>
                             <img src={card.aiImage} alt="" crossOrigin="anonymous" />
-                            <span className="badge">AI 생성 이미지</span>
+                            <span className="badge">{card.aiProvider === 'openai' ? 'AI 생성 이미지(OpenAI)' : 'AI 생성 이미지(무료)'}</span>
                           </>
                         ) : (
                           <>
