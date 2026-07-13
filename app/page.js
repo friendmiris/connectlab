@@ -113,13 +113,13 @@ function buildCards(article, magazine) {
   // cramming it all in - this can push the body card count past 3 when needed.
   const expandedPoints = bodyPoints.flatMap((p) => splitLongPoint(p, 140));
 
-  cards.push({ type: 'cover', label: 'HOOK', title: article.title, text: coverText, custom: null, aiImage: null, aiState: 'idle' });
+  cards.push({ type: 'cover', label: 'HOOK', title: article.title, text: coverText, custom: null, aiImage: null, aiState: 'idle', footLeft: article.source, footRight: article.date });
 
   expandedPoints.slice(0, 4).forEach((p, i) => {
-    cards.push({ type: 'body', label: `BODY ${i + 1}`, title: `포인트 ${i + 1}`, text: p, custom: null, aiImage: null, aiState: 'idle' });
+    cards.push({ type: 'body', label: `BODY ${i + 1}`, title: `포인트 ${i + 1}`, text: p, custom: null, aiImage: null, aiState: 'idle', footLeft: article.source, footRight: article.date });
   });
 
-  cards.push({ type: 'outro', label: '결론', title: '저장하고 오래 보기', text: `${article.tag}  ${magazine.hashtags}`, custom: null, aiImage: null, aiState: 'idle' });
+  cards.push({ type: 'outro', label: '결론', title: '저장하고 오래 보기', text: `${article.tag}  ${magazine.hashtags}`, custom: null, aiImage: null, aiState: 'idle', footLeft: article.source, footRight: article.date });
   return cards.map((c2) => ({ ...c2, catColor: c.color, catLabel: c.label }));
 }
 
@@ -515,6 +515,9 @@ export default function Home() {
               </div>
               <div className="results-count">{scraps.length}건</div>
             </div>
+            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: -8, marginBottom: 20, lineHeight: 1.6 }}>
+              ⚠ 스크랩은 이 브라우저에만 저장돼요. 방문 기록·캐시를 지우면 함께 사라지고, 시크릿(비공개) 모드에서는 저장되지 않아요. 다른 기기·다른 브라우저에서는 보이지 않아요.
+            </p>
             {scraps.length === 0 ? (
               <div className="empty-state">아직 스크랩한 기사가 없어요. 검색 결과에서 ☆ 버튼을 눌러 저장해보세요.</div>
             ) : (
@@ -574,7 +577,6 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            <p className="mode-hint">{IMG_MODES.find((m) => m.id === imageMode).hint}</p>
             {(imageMode === 'ai' || imageMode === 'stock') && (
               <button className="btn" style={{ marginBottom: 16 }} disabled={bulkLoading} onClick={loadAllImages}>
                 {bulkLoading ? '카드마다 이미지 불러오는 중...' : `카드 ${cards.length}장 이미지 한 번에 불러오기`}
@@ -587,34 +589,22 @@ export default function Home() {
                   <div className="frame-label"><span>{card.label}</span><span>{idx + 1} / {cards.length}</span></div>
                   <div className="card" id={'card-' + idx}>
                     <div className="card-media">
+                      {(card.aiState === 'loading' || card.stockState === 'loading') && (
+                        <div className="media-loading"><span className="spinner-lg" /></div>
+                      )}
                       {card.custom ? (
-                        <>
-                          <img src={card.custom} alt="" crossOrigin="anonymous" />
-                          <span className="badge">직접 업로드</span>
-                        </>
+                        <img src={card.custom} alt="" crossOrigin="anonymous" />
                       ) : imageMode === 'ai' ? (
                         card.aiImage ? (
-                          <>
-                            <img src={card.aiImage} alt="" crossOrigin="anonymous" />
-                            <span className="badge">{card.aiProvider === 'openai' ? 'AI 생성 이미지(OpenAI)' : 'AI 생성 이미지(무료)'}</span>
-                          </>
+                          <img src={card.aiImage} alt="" crossOrigin="anonymous" />
                         ) : (
-                          <>
-                            <MockIllustration catId={article.cat} color={card.catColor} seed={idx + 1} />
-                            <span className="badge">{card.aiState === 'loading' ? '생성 중...' : '미리보기(목업)'}</span>
-                          </>
+                          <MockIllustration catId={article.cat} color={card.catColor} seed={idx + 1} />
                         )
                       ) : imageMode === 'stock' ? (
                         card.stockImage ? (
-                          <>
-                            <img src={card.stockImage} alt="" crossOrigin="anonymous" />
-                            <span className="badge">{card.stockMode === 'live' ? '무료 스톡(관련 이미지)' : '무료 스톡(예시, 키워드 무관)'}</span>
-                          </>
+                          <img src={card.stockImage} alt="" crossOrigin="anonymous" />
                         ) : (
-                          <>
-                            <MockIllustration catId={article.cat} color={card.catColor} seed={idx + 1} />
-                            <span className="badge">{card.stockState === 'loading' ? '불러오는 중...' : '이미지 불러오기 필요'}</span>
-                          </>
+                          <MockIllustration catId={article.cat} color={card.catColor} seed={idx + 1} />
                         )
                       ) : (
                         <div className="ph">이미지 없음<br />아래 &apos;이미지 업로드&apos;로 사진을 추가하세요</div>
@@ -644,7 +634,28 @@ export default function Home() {
                       >
                         {card.text}
                       </div>
-                      <div className="card-foot"><span>{article.source}</span><span>{article.date}</span></div>
+                      <div className="card-foot">
+                        <span
+                          contentEditable
+                          suppressContentEditableWarning
+                          onBlur={(e) => {
+                            const val = e.currentTarget.innerText;
+                            setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, footLeft: val } : c)));
+                          }}
+                        >
+                          {card.footLeft}
+                        </span>
+                        <span
+                          contentEditable
+                          suppressContentEditableWarning
+                          onBlur={(e) => {
+                            const val = e.currentTarget.innerText;
+                            setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, footRight: val } : c)));
+                          }}
+                        >
+                          {card.footRight}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div className="frame-tools">
