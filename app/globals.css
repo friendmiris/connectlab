@@ -106,15 +106,15 @@ main{max-width:1120px; margin:0 auto; padding:0 24px 120px;}
 .filmstrip{display:flex; gap:20px; overflow-x:auto; padding:22px 4px 30px; scroll-snap-type:x proximity;}
 .frame{flex:0 0 auto; scroll-snap-align:start; width:260px;}
 .frame-label{font-family:'DM Mono',monospace; font-size:11px; color:var(--ink-soft); display:flex; justify-content:space-between; margin-bottom:8px;}
-.card{width:260px; height:325px; background:#fff; border:1.5px solid var(--ink); border-radius:6px; overflow:hidden; position:relative; display:flex; flex-direction:column; box-shadow:4px 4px 0 rgba(30,27,22,0.08);}
-.card-media{height:150px; position:relative; overflow:hidden; background:var(--paper2); display:flex; align-items:center; justify-content:center;}
+.card{width:260px; min-height:325px; background:#fff; border:1.5px solid var(--ink); border-radius:6px; overflow:visible; position:relative; display:flex; flex-direction:column; box-shadow:4px 4px 0 rgba(30,27,22,0.08);}
+.card-media{height:150px; position:relative; overflow:hidden; background:var(--paper2); display:flex; align-items:center; justify-content:center; border-radius:5px 5px 0 0;}
 .card-media img{width:100%; height:100%; object-fit:cover;}
 .card-media .ph{font-size:11px; color:var(--ink-soft); text-align:center; padding:0 20px;}
 .card-media .badge{position:absolute; bottom:6px; left:6px; font-size:9px; background:rgba(30,27,22,0.75); color:#fff; padding:3px 7px; border-radius:10px;}
 .card-body{padding:14px 15px; display:flex; flex-direction:column; flex:1; gap:6px;}
 .card-cat{font-size:9.5px; font-weight:700; letter-spacing:0.08em;}
 .card-title{font-family:'Noto Serif KR',serif; font-weight:900; font-size:16px; line-height:1.35; margin:0;}
-.card-text{font-size:11.5px; line-height:1.6; color:#3a362f; margin:0; flex:1;}
+.card-text{font-size:11.5px; line-height:1.6; color:#3a362f; margin:0; flex:1; white-space:pre-line;}
 .card-foot{display:flex; justify-content:space-between; align-items:center; font-size:9.5px; color:var(--ink-soft); border-top:1px dashed var(--line); padding-top:6px;}
 .frame-tools{display:flex; gap:6px; margin-top:10px;}
 .tool-btn{flex:1; font-size:10.5px; padding:6px 4px; border:1px solid var(--line); background:var(--paper2); border-radius:4px; color:var(--ink-soft);}

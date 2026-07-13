@@ -5,9 +5,15 @@ function stripTags(str = '') {
 }
 
 function splitToPoints(text) {
-  const parts = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
-  while (parts.length > 0 && parts.length < 4) parts.push(parts[parts.length - 1]);
-  return parts.length ? parts.slice(0, 4) : [text, text, text, text];
+  const parts = text
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    // drop a trailing fragment that's just Naver's own "..." truncation marker with no real content
+    .filter(s => s.replace(/\.+$/, '').trim().length > 0);
+  // IMPORTANT: never pad short results by repeating the last sentence - that was producing
+  // duplicate-looking cards when a Naver snippet only had one real sentence in it.
+  return parts.length ? parts.slice(0, 4) : [text];
 }
 
 // ---------- Naver News ----------

@@ -78,6 +78,14 @@ git push -u origin main
 
 키가 없으면 카드마다 목업 미리보기가, 키가 있으면 실제 생성 이미지가 나옵니다 (`app/api/illustrate/route.js` 참고). 다른 이미지 생성 서비스(Stability AI 등)를 쓰고 싶다면 이 파일의 fetch 호출부만 바꾸면 됩니다.
 
+## 6. 무료 스톡 사진을 실제로 키워드에 맞게 바꾸기
+
+1. https://unsplash.com/join 에서 계정 생성
+2. https://unsplash.com/developers → "New Application" 으로 앱 등록 (무료, 심사 없이 바로 개발용 키 발급)
+3. Access Key 복사 → Vercel 환경변수에 `UNSPLASH_ACCESS_KEY` 추가 후 Redeploy
+
+키가 없으면 무작위 예시 이미지(키워드 무관)가 나오고, 키를 넣으면 카드 제목과 관련된 실제 사진을 Unsplash에서 검색해서 보여줘요. 개발용 키는 시간당 50회 제한이 있어요 (넘으면 자동으로 예시 이미지로 대체됩니다).
+
 ## 폴더 구조
 
 ```
@@ -91,6 +99,4 @@ lib/
   mockArticles.js       샘플 기사 30개 + 카테고리/키워드 정의
 ```
 
-## 무료 스톡 사진을 실제로 바꾸려면
 
-지금은 picsum.photos 예시 이미지가 나옵니다. Unsplash API(무료, 키 발급 필요)로 바꾸려면 `app/page.js`에서 `imageMode === 'stock'` 분기의 `<img src="https://picsum.photos/...">` 부분을 Unsplash 검색 결과로 교체하면 됩니다. 원하시면 이 부분도 이어서 연결해드릴게요.

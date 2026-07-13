@@ -5,7 +5,7 @@ import { CATEGORIES, KEYWORDS } from '../lib/mockArticles';
 
 const IMG_MODES = [
   { id: 'ai', label: '🖌 AI 일러스트', hint: '카드마다 "AI 일러스트 생성" 버튼을 누르면 실제 이미지 생성 API를 호출해요. OPENAI_API_KEY가 설정돼 있지 않으면 대신 미리보기용 목업이 표시돼요.' },
-  { id: 'stock', label: '📷 무료 스톡 사진', hint: '무료 이미지에서 예시로 불러와요. 실제 서비스에서는 Unsplash/Pixabay API로 교체하면 키워드 매칭 이미지를 받을 수 있어요.' },
+  { id: 'stock', label: '📷 무료 스톡 사진', hint: '카드마다 "관련 이미지 불러오기" 버튼을 누르면 Unsplash에서 키워드에 맞는 사진을 찾아와요. UNSPLASH_ACCESS_KEY가 없으면 키워드와 무관한 예시 이미지로 대체돼요.' },
   { id: 'none', label: '⬆ 직접 업로드', hint: '저작권 걱정 없이 내가 가진 사진을 카드마다 직접 올릴 수 있어요.' },
 ];
 
@@ -14,48 +14,58 @@ function catInfo(id) {
 }
 
 function MockIllustration({ catId, color, seed }) {
-  const bg = `hsl(${(seed * 47) % 360}, 35%, 92%)`;
   const shapes = {
     beauty: (
       <>
-        <circle cx="60" cy="45" r="30" fill={color} opacity="0.55" />
-        <path d="M40 90 Q60 60 80 90" stroke="#fff" strokeWidth="4" fill="none" opacity="0.7" />
+        <circle cx="60" cy="50" r="26" fill="#fff" />
+        <path d="M42 95 Q60 62 78 95" stroke="#fff" strokeWidth="6" fill="none" strokeLinecap="round" />
+        <circle cx="60" cy="50" r="10" fill={color} />
       </>
     ),
-    fashion: <path d="M30 40 L60 25 L90 40 L75 45 L75 90 L45 90 L45 45 Z" fill={color} opacity="0.55" />,
+    fashion: (
+      <>
+        <path d="M60 24 L44 40 L52 44 L60 36 L68 44 L76 40 Z" fill="#fff" />
+        <path d="M36 46 L60 36 L84 46 L78 96 L42 96 Z" fill="#fff" />
+        <path d="M52 46 Q60 58 68 46" stroke={color} strokeWidth="4" fill="none" />
+      </>
+    ),
     it: (
       <>
-        <circle cx="35" cy="35" r="6" fill={color} />
-        <circle cx="85" cy="35" r="6" fill={color} />
-        <circle cx="35" cy="85" r="6" fill={color} />
-        <circle cx="85" cy="85" r="6" fill={color} />
-        <path d="M35 35L85 35M35 35L35 85M85 35L85 85M35 85L85 85" stroke={color} strokeWidth="2" opacity="0.6" />
+        <rect x="34" y="34" width="52" height="52" rx="8" fill="#fff" />
+        <rect x="48" y="48" width="24" height="24" rx="4" fill={color} />
+        <line x1="60" y1="20" x2="60" y2="34" stroke="#fff" strokeWidth="4" />
+        <line x1="60" y1="86" x2="60" y2="100" stroke="#fff" strokeWidth="4" />
+        <line x1="20" y1="60" x2="34" y2="60" stroke="#fff" strokeWidth="4" />
+        <line x1="86" y1="60" x2="100" y2="60" stroke="#fff" strokeWidth="4" />
       </>
     ),
     humanities: (
       <>
-        <rect x="30" y="40" width="60" height="42" rx="3" fill={color} opacity="0.5" />
-        <line x1="60" y1="40" x2="60" y2="82" stroke="#fff" strokeWidth="3" />
+        <path d="M60 32 C50 24 32 24 26 30 L26 88 C32 82 50 82 60 90 Z" fill="#fff" />
+        <path d="M60 32 C70 24 88 24 94 30 L94 88 C88 82 70 82 60 90 Z" fill="#fff" />
+        <line x1="60" y1="32" x2="60" y2="90" stroke={color} strokeWidth="3" />
       </>
     ),
     economy: (
       <>
-        <rect x="30" y="70" width="14" height="20" fill={color} opacity="0.6" />
-        <rect x="52" y="55" width="14" height="35" fill={color} opacity="0.75" />
-        <rect x="74" y="35" width="14" height="55" fill={color} />
+        <rect x="28" y="66" width="14" height="26" fill="#fff" />
+        <rect x="53" y="48" width="14" height="44" fill="#fff" />
+        <rect x="78" y="30" width="14" height="62" fill="#fff" />
+        <path d="M28 62 L53 44 L78 26" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" />
       </>
     ),
     issue: (
       <>
-        <circle cx="60" cy="55" r="32" fill={color} opacity="0.5" />
-        <circle cx="60" cy="55" r="4" fill="#fff" />
-        <line x1="60" y1="35" x2="60" y2="48" stroke="#fff" strokeWidth="3" />
+        <path d="M26 34 h68 v40 h-30 l-14 14 v-14 h-24 z" fill="#fff" />
+        <circle cx="46" cy="54" r="4" fill={color} />
+        <circle cx="60" cy="54" r="4" fill={color} />
+        <circle cx="74" cy="54" r="4" fill={color} />
       </>
     ),
   };
   return (
     <svg viewBox="0 0 120 120" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
-      <rect width="120" height="120" fill={bg} />
+      <rect width="120" height="120" fill={color} />
       {shapes[catId] || shapes.issue}
     </svg>
   );
@@ -64,10 +74,18 @@ function MockIllustration({ catId, color, seed }) {
 function buildCards(article, magazine) {
   const c = catInfo(article.cat);
   const cards = [];
-  cards.push({ type: 'cover', label: 'COVER', title: article.title, text: magazine.tagline, custom: null, aiImage: null, aiState: 'idle' });
-  article.points.forEach((p, i) => {
-    cards.push({ type: 'body', label: `POINT ${i + 1}`, title: p.length > 18 ? p.slice(0, 18) + '…' : p, text: p, custom: null, aiImage: null, aiState: 'idle' });
+  cards.push({ type: 'cover', label: 'COVER', title: article.title, text: article.summary || magazine.tagline, custom: null, aiImage: null, aiState: 'idle' });
+
+  // Merge points into at most 2 body cards so the whole set stays at 3-4 cards total,
+  // and de-duplicate so a short snippet with only 1 real sentence doesn't repeat itself.
+  const uniquePoints = [...new Set((article.points || []).map((p) => p.trim()).filter(Boolean))];
+  const mid = Math.ceil(uniquePoints.length / 2);
+  const groups = [uniquePoints.slice(0, mid), uniquePoints.slice(mid)].filter((g) => g.length > 0);
+  groups.forEach((g, gi) => {
+    const body = g.map((p) => `• ${p}`).join('\n');
+    cards.push({ type: 'body', label: `POINT ${gi + 1}`, title: g[0], text: body, custom: null, aiImage: null, aiState: 'idle' });
   });
+
   cards.push({ type: 'outro', label: 'OUTRO', title: '저장하고 오래 보기', text: `${article.tag}  ${magazine.hashtags}`, custom: null, aiImage: null, aiState: 'idle' });
   return cards.map((c2) => ({ ...c2, catColor: c.color, catLabel: c.label }));
 }
@@ -150,6 +168,22 @@ export default function Home() {
     }
   }
 
+  async function fetchStockPhoto(idx) {
+    setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, stockState: 'loading' } : c)));
+    try {
+      const q = `${catInfo(article.cat).label} ${cards[idx].title}`.slice(0, 60);
+      const res = await fetch(`/api/stock?q=${encodeURIComponent(q)}&seed=${article.id}-${idx}`);
+      const data = await res.json();
+      setCards((prev) =>
+        prev.map((c, i) => (i === idx ? { ...c, stockImage: data.image, stockMode: data.mode, stockState: 'done' } : c))
+      );
+      if (data.mode === 'demo') showToast('UNSPLASH_ACCESS_KEY가 없어서 키워드와 무관한 예시 이미지로 대체했어요');
+    } catch (e) {
+      setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, stockState: 'error' } : c)));
+      showToast('이미지를 불러오지 못했어요');
+    }
+  }
+
   function uploadImage(idx, file) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -162,7 +196,7 @@ export default function Home() {
   async function downloadCard(idx) {
     const html2canvas = (await import('html2canvas')).default;
     const node = document.getElementById('card-' + idx);
-    const canvas = await html2canvas(node, { scale: 3, backgroundColor: '#ffffff' });
+    const canvas = await html2canvas(node, { scale: 3, backgroundColor: '#ffffff', useCORS: true, allowTaint: false });
     const link = document.createElement('a');
     link.download = `card-${idx + 1}.png`;
     link.href = canvas.toDataURL('image/png');
@@ -176,7 +210,7 @@ export default function Home() {
     const zip = new JSZip();
     for (let idx = 0; idx < cards.length; idx++) {
       const node = document.getElementById('card-' + idx);
-      const canvas = await html2canvas(node, { scale: 3, backgroundColor: '#ffffff' });
+      const canvas = await html2canvas(node, { scale: 3, backgroundColor: '#ffffff', useCORS: true, allowTaint: false });
       const data = canvas.toDataURL('image/png').split(',')[1];
       zip.file(`card-${idx + 1}.png`, data, { base64: true });
     }
@@ -309,7 +343,14 @@ export default function Home() {
                       <div className="clip-source"><span>{a.source}</span><span>{a.date}</span></div>
                       <h3>{a.title}</h3>
                       <p className="clip-summary">{a.summary}</p>
-                      <button className="clip-make" onClick={() => openEditor(a)}>카드뉴스 만들기 →</button>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <button className="clip-make" onClick={() => openEditor(a)}>카드뉴스 만들기 →</button>
+                        {a.link && (
+                          <a href={a.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--ink-soft)', textDecoration: 'underline' }}>
+                            원문 보기 ↗
+                          </a>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -324,7 +365,9 @@ export default function Home() {
               <div>
                 <button className="back-link" onClick={() => setView('results')}>← 기사 목록으로</button>
                 <h2 className="serif" style={{ marginTop: 6 }}>{article.title}</h2>
-                <div className="src">{article.source} · {article.date}</div>
+                <div className="src">{article.source} · {article.date}{article.link && (
+                  <> · <a href={article.link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--wine)', textDecoration: 'underline' }}>원문 보기 ↗</a></>
+                )}</div>
               </div>
               <div className="editor-actions">
                 <button className="btn" onClick={regen}>🔄 다시 생성</button>
@@ -349,13 +392,13 @@ export default function Home() {
                     <div className="card-media">
                       {card.custom ? (
                         <>
-                          <img src={card.custom} alt="" />
+                          <img src={card.custom} alt="" crossOrigin="anonymous" />
                           <span className="badge">직접 업로드</span>
                         </>
                       ) : imageMode === 'ai' ? (
                         card.aiImage ? (
                           <>
-                            <img src={card.aiImage} alt="" />
+                            <img src={card.aiImage} alt="" crossOrigin="anonymous" />
                             <span className="badge">AI 생성 이미지</span>
                           </>
                         ) : (
@@ -365,10 +408,17 @@ export default function Home() {
                           </>
                         )
                       ) : imageMode === 'stock' ? (
-                        <>
-                          <img src={`https://picsum.photos/seed/${article.id}-${idx}/400/300`} alt="" />
-                          <span className="badge">무료 스톡(예시)</span>
-                        </>
+                        card.stockImage ? (
+                          <>
+                            <img src={card.stockImage} alt="" crossOrigin="anonymous" />
+                            <span className="badge">{card.stockMode === 'live' ? '무료 스톡(관련 이미지)' : '무료 스톡(예시, 키워드 무관)'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <MockIllustration catId={article.cat} color={card.catColor} seed={idx + 1} />
+                            <span className="badge">{card.stockState === 'loading' ? '불러오는 중...' : '이미지 불러오기 필요'}</span>
+                          </>
+                        )
                       ) : (
                         <div className="ph">이미지 없음<br />아래 &apos;이미지 업로드&apos;로 사진을 추가하세요</div>
                       )}
@@ -384,6 +434,11 @@ export default function Home() {
                     {imageMode === 'ai' && !card.custom && (
                       <button className="tool-btn" disabled={card.aiState === 'loading'} onClick={() => generateIllustration(idx)}>
                         {card.aiState === 'loading' ? <><span className="spinner" />생성 중</> : 'AI 일러스트 생성'}
+                      </button>
+                    )}
+                    {imageMode === 'stock' && !card.custom && (
+                      <button className="tool-btn" disabled={card.stockState === 'loading'} onClick={() => fetchStockPhoto(idx)}>
+                        {card.stockState === 'loading' ? <><span className="spinner" />불러오는 중</> : '관련 이미지 불러오기'}
                       </button>
                     )}
                     <button className="tool-btn" onClick={() => document.getElementById('file-' + idx).click()}>이미지 업로드</button>
