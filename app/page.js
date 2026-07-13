@@ -71,6 +71,24 @@ function MockIllustration({ catId, color, seed }) {
   );
 }
 
+function splitLongPoint(p, maxLen) {
+  if (p.length <= maxLen) return [p];
+  // try to split at a sentence boundary closest to the midpoint - never split mid-sentence
+  const sentences = p.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length > 1) {
+    let mid = 0, running = 0;
+    for (let i = 0; i < sentences.length; i++) {
+      running += sentences[i].length;
+      if (running >= p.length / 2) { mid = i + 1; break; }
+    }
+    const first = sentences.slice(0, mid).join(' ').trim();
+    const second = sentences.slice(mid).join(' ').trim();
+    if (first && second) return [first, second];
+  }
+  // no sentence boundary available - leave it as one card rather than cutting mid-sentence
+  return [p];
+}
+
 function buildCards(article, magazine) {
   const c = catInfo(article.cat);
   const cards = [];
@@ -91,10 +109,13 @@ function buildCards(article, magazine) {
     bodyPoints = allPoints.length > 1 ? allPoints.slice(1) : [];
   }
 
+  // If a point is too long for one card, split it across two cards instead of
+  // cramming it all in - this can push the body card count past 3 when needed.
+  const expandedPoints = bodyPoints.flatMap((p) => splitLongPoint(p, 140));
+
   cards.push({ type: 'cover', label: 'HOOK', title: article.title, text: coverText, custom: null, aiImage: null, aiState: 'idle' });
 
-  // Up to 3 body cards, one point each - matches the HOOK / BODY 1-2-3 / 결론 structure.
-  bodyPoints.slice(0, 3).forEach((p, i) => {
+  expandedPoints.slice(0, 4).forEach((p, i) => {
     cards.push({ type: 'body', label: `BODY ${i + 1}`, title: `포인트 ${i + 1}`, text: p, custom: null, aiImage: null, aiState: 'idle' });
   });
 
@@ -142,6 +163,7 @@ export default function Home() {
 
   const [article, setArticle] = useState(null);
   const [captionOverride, setCaptionOverride] = useState(null);
+  const [cleaning, setCleaning] = useState(false);
   const [cards, setCards] = useState([]);
   const [imageMode, setImageMode] = useState('ai');
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -184,6 +206,7 @@ export default function Home() {
     setCards(buildCards(a, magazine));
     setCaptionOverride(null);
     setView('editor');
+    setCleaning(true);
     try {
       const res = await fetch('/api/cleanup', {
         method: 'POST',
@@ -204,6 +227,8 @@ export default function Home() {
       }
     } catch (e) {
       // silently keep the original regex-split version
+    } finally {
+      setCleaning(false);
     }
   }
 
@@ -361,12 +386,12 @@ export default function Home() {
 
       {searchMode === 'demo' && view !== 'home' && (
         <div className="mode-banner demo">
-          {sourceKind === 'news' ? '뉴스' : sourceKind === 'youtube' ? '유튜브' : '구글'} 검색은 샘플 데이터로 동작 중이에요 · {sourceKind === 'news' ? 'NAVER_CLIENT_ID' : sourceKind === 'youtube' ? 'YOUTUBE_API_KEY' : 'GOOGLE_CSE_KEY'} 를 설정하면 실시간 검색으로 바뀝니다
+          {sourceKind === 'news' ? '뉴스' : sourceKind === 'youtube' ? '유튜브' : '블로그'} 검색은 샘플 데이터로 동작 중이에요 · {sourceKind === 'news' ? 'NAVER_CLIENT_ID' : sourceKind === 'youtube' ? 'YOUTUBE_API_KEY' : 'NAVER_CLIENT_ID'} 를 설정하면 실시간 검색으로 바뀝니다
           {searchError ? ` (API 오류: ${searchError})` : ''}
         </div>
       )}
       {searchMode === 'live' && view !== 'home' && (
-        <div className="mode-banner live">실시간 {sourceKind === 'news' ? '네이버 뉴스' : sourceKind === 'youtube' ? '유튜브' : '구글'} 검색 결과예요 ({sort === 'popular' ? '인기순' : '최신순'})</div>
+        <div className="mode-banner live">실시간 {sourceKind === 'news' ? '네이버 뉴스' : sourceKind === 'youtube' ? '유튜브' : '네이버 블로그'} 검색 결과예요 ({sort === 'popular' ? '인기순' : '최신순'})</div>
       )}
 
       <main>
@@ -391,7 +416,7 @@ export default function Home() {
               </div>
 
               <div className="cat-row" style={{ marginTop: -8 }}>
-                {[{ id: 'news', label: '📰 뉴스' }, { id: 'youtube', label: '▶ 유튜브' }].map((s) => (
+                {[{ id: 'news', label: '📰 뉴스' }, { id: 'youtube', label: '▶ 유튜브' }, { id: 'blog', label: '📝 블로그' }].map((s) => (
                   <button key={s.id} className={'cat-pill' + (sourceKind === s.id ? ' selected' : '')} onClick={() => setSourceKind(s.id)}>
                     {s.label}
                   </button>
@@ -534,6 +559,13 @@ export default function Home() {
                 <button className="btn primary" disabled={bulkLoading || cards.some((c) => c.aiState === 'loading' || c.stockState === 'loading')} onClick={downloadZip}>⬇ 전체 ZIP 다운로드</button>
               </div>
             </div>
+
+            {cleaning && (
+              <div className="mode-banner live" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="spinner" style={{ borderTopColor: '#fff', borderColor: 'rgba(255,255,255,0.4)' }} />
+                AI가 카드 내용을 더 정확하게 다듬는 중이에요. 몇 초만 기다려주세요...
+              </div>
+            )}
 
             <div className="mode-row">
               {IMG_MODES.map((m) => (

@@ -151,6 +151,40 @@ async function searchYouTube({ query, sort }) {
 }
 
 // ---------- Google (Custom Search JSON API) ----------
+async function searchNaverBlog({ query, sort, category, catLabel }) {
+  const clientId = process.env.NAVER_CLIENT_ID;
+  const clientSecret = process.env.NAVER_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+
+  // Naver blog search: sort=date (recency) or sort=sim (relevance, closest to "popular")
+  const naverSort = sort === 'recent' ? 'date' : 'sim';
+  const url = `https://openapi.naver.com/v1/search/blog.json?query=${encodeURIComponent(query)}&display=30&sort=${naverSort}`;
+  const res = await fetch(url, {
+    headers: { 'X-Naver-Client-Id': clientId, 'X-Naver-Client-Secret': clientSecret },
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error('naver blog api error ' + res.status);
+  const data = await res.json();
+  const mapped = (data.items || []).map((item, i) => {
+    const title = stripTrailingEllipsis(stripTags(item.title));
+    const summary = stripTrailingEllipsis(stripTags(item.description));
+    return {
+      id: `blog-${Date.now()}-${i}`,
+      kind: 'blog',
+      cat: category || 'issue',
+      catLabel,
+      source: item.bloggername || (item.link || '').replace(/^https?:\/\//, '').split('/')[0],
+      date: item.postdate ? `${item.postdate.slice(0, 4)}.${item.postdate.slice(4, 6)}.${item.postdate.slice(6, 8)}.` : '',
+      title,
+      summary,
+      points: splitToPoints(summary),
+      tag: catLabel ? `#${catLabel}` : '#블로그',
+      link: item.link,
+    };
+  });
+  return dedupeBySimilarTitle(mapped);
+}
+
 async function searchGoogle({ query, sort }) {
   const apiKey = process.env.GOOGLE_CSE_KEY;
   const cx = process.env.GOOGLE_CSE_CX;
@@ -197,6 +231,7 @@ export async function GET(request) {
     let articles = null;
     if (source === 'news') articles = await searchNaver({ query, sort, category, catLabel });
     else if (source === 'youtube') articles = await searchYouTube({ query: youtubeQuery, sort });
+    else if (source === 'blog') articles = await searchNaverBlog({ query, sort, category, catLabel });
     else if (source === 'google') articles = await searchGoogle({ query, sort });
 
     if (articles) {

@@ -16,7 +16,7 @@ export async function POST(request) {
   } else if (link) {
     // Naver's search API only gives a one-line snippet - fetch the actual article page
     // so the summary can be based on the real content, not just that teaser line.
-    const articleText = await fetchArticleText(link);
+    const articleText = await fetchArticleText(link, title);
     if (articleText) {
       contentForPrompt = `기사 본문 전체: ${articleText.slice(0, 6000)}`;
     }
@@ -109,7 +109,7 @@ ${contentForPrompt}
 // has real content to summarize from, instead of Naver's one-line snippet. This text is
 // never shown to the user directly - it's only used as input for the AI to write a fresh,
 // paraphrased summary (see the prompt above), which is what actually gets displayed.
-async function fetchArticleText(url) {
+async function fetchArticleText(url, title) {
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CardNewsBot/1.0)' },
@@ -121,12 +121,35 @@ async function fetchArticleText(url) {
     const withoutScripts = html
       .replace(/<script[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style[\s\S]*?<\/style>/gi, ' ');
-    const boilerplate = /무단\s*전재|재배포\s*금지|저작권자|ⓒ|copyright|기자\s*=|이메일\s*무단수집|기사제보|구독\s*신청/i;
+    const boilerplate = /무단\s*전재|재배포\s*금지|저작권자|ⓒ|copyright|기자\s*=|이메일\s*무단수집|기사제보|구독\s*신청|제보(는|를|해)|제보\s*가능|비리.{0,10}부당대우|앱\s*다운로드|알림\s*설정|구독하기/i;
     const paragraphs = [...withoutScripts.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
       .map((m) => m[1].replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim())
       .filter((p) => p.length > 25 && !boilerplate.test(p));
     const text = paragraphs.join(' ');
-    return text.length > 100 ? text : null;
+    if (text.length <= 100) return null;
+
+    // A real article body is usually a handful of longer paragraphs. A "related articles" or
+    // "latest news" widget tends to be many short one-line teasers instead - if that's the
+    // shape of what we got, it's probably not the actual article.
+    const avgLen = paragraphs.reduce((sum, p) => sum + p.length, 0) / paragraphs.length;
+    if (paragraphs.length > 12 && avgLen < 60) return null;
+
+    // Sanity check: if the extracted text doesn't clearly relate to the title, we probably
+    // grabbed the wrong block (a "related articles" list, site chrome, etc.) instead of the
+    // actual article. Require at least 2 distinct title words to show up - a single
+    // coincidental match isn't enough, since a "recent articles" sidebar can easily contain
+    // one word that happens to match while being full of unrelated stories.
+    if (title) {
+      const titleWords = title
+        .replace(/[\[\]'"·…,.!?()]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length >= 2);
+      const matchCount = titleWords.filter((w) => text.includes(w)).length;
+      const required = titleWords.length <= 2 ? 1 : 2;
+      if (titleWords.length > 0 && matchCount < required) return null;
+    }
+
+    return text;
   } catch (err) {
     // paywalled, blocked, timed out, or not html - fall back to the short snippet
     return null;

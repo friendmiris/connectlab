@@ -48,10 +48,12 @@ git push -u origin main
 
 세 소스는 각각 독립적인 키가 필요해요. 하나만 연결해도 그 소스만 실시간으로 바뀌고, 나머지는 계속 샘플로 동작해요.
 
-### 네이버 뉴스
+### 네이버 뉴스 · 네이버 블로그
 1. https://developers.naver.com/apps/#/register 에서 애플리케이션 등록 (무료)
 2. 사용 API에서 **검색** 체크 → Client ID / Client Secret 확인
 3. Vercel 환경변수에 `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET` 추가
+
+이 키 하나로 **뉴스와 블로그 검색 둘 다** 동작해요 (같은 네이버 오픈API라 별도 설정 필요 없음). 블로그는 광주 맛집·전시회처럼 개인 후기·트렌드성 콘텐츠 찾을 때 유용해요.
 
 ### 유튜브
 1. https://console.cloud.google.com 에서 프로젝트 생성
