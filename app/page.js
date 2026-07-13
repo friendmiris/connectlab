@@ -661,12 +661,12 @@ export default function Home() {
                   <div className="frame-tools">
                     {imageMode === 'ai' && !card.custom && (
                       <button className="tool-btn" disabled={card.aiState === 'loading'} onClick={() => generateIllustration(idx)}>
-                        {card.aiState === 'loading' ? <><span className="spinner" />생성 중</> : 'AI 일러스트 생성'}
+                        {card.aiState === 'loading' ? <><span className="spinner" />생성 중</> : 'AI 일러스트'}
                       </button>
                     )}
                     {imageMode === 'stock' && !card.custom && (
                       <button className="tool-btn" disabled={card.stockState === 'loading'} onClick={() => fetchStockPhoto(idx)}>
-                        {card.stockState === 'loading' ? <><span className="spinner" />불러오는 중</> : '관련 이미지 불러오기'}
+                        {card.stockState === 'loading' ? <><span className="spinner" />불러오는 중</> : '이미지 불러오기'}
                       </button>
                     )}
                     <button className="tool-btn" onClick={() => document.getElementById('file-' + idx).click()}>이미지 업로드</button>

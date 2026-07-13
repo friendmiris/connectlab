@@ -129,7 +129,7 @@ main{max-width:1120px; margin:0 auto; padding:0 24px 120px;}
 .card-foot span:hover{background:var(--paper2);}
 .card-foot span:focus{outline:none; box-shadow:0 0 0 2px var(--wine-soft); background:#fff;}
 .frame-tools{display:flex; gap:6px; margin-top:10px;}
-.tool-btn{flex:1; font-size:12px; padding:7px 4px; border:1px solid var(--line); background:var(--surface); border-radius:999px; color:var(--ink-soft); font-weight:600;}
+.tool-btn{flex:1; font-size:11.5px; padding:7px 4px; border:1px solid var(--line); background:var(--surface); border-radius:999px; color:var(--ink-soft); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .tool-btn:hover{border-color:var(--ink); color:var(--ink);}
 input[type=file]{display:none;}
 
