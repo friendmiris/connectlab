@@ -194,7 +194,7 @@ export default function Home() {
   async function generateIllustration(idx) {
     setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, aiState: 'loading' } : c)));
     try {
-      const prompt = `${catInfo(article.cat).label} magazine card: ${cards[idx].title}`;
+      const prompt = `${catInfo(article.cat).label} theme: ${cards[idx].title}`;
       const res = await fetch('/api/illustrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

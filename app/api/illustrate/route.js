@@ -1,6 +1,6 @@
 export async function POST(request) {
   const { prompt } = await request.json();
-  const styledPrompt = `magazine editorial illustration, flat vector style, no text, no logos, clean and simple: ${prompt}`;
+  const styledPrompt = `flat vector illustration, simple geometric shapes and icons, absolutely no text or letters or writing or typography or logos or signage anywhere in the image, no readable characters of any kind, abstract symbolic representation only: ${prompt}`;
   const openaiKey = process.env.OPENAI_API_KEY;
 
   // If OPENAI_API_KEY is set, prefer it (higher, more controllable quality, costs money per image).
