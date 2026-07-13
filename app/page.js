@@ -74,22 +74,28 @@ function MockIllustration({ catId, color, seed }) {
 function buildCards(article, magazine) {
   const c = catInfo(article.cat);
   const cards = [];
-  cards.push({ type: 'cover', label: 'COVER', title: article.title, text: article.summary || magazine.tagline, custom: null, aiImage: null, aiState: 'idle' });
+
+  const allPoints = [...new Set((article.points || []).map((p) => p.trim()).filter(Boolean))];
+
+  let coverText, bodyPoints;
+  if (article.cleaned) {
+    // Claude already wrote a standalone summary and points that deliberately avoid
+    // repeating it, so use them as-is.
+    coverText = article.summary || magazine.tagline;
+    bodyPoints = allPoints;
+  } else {
+    // Raw regex-split sentences: the cover text and the points would otherwise be the
+    // exact same sentences. Avoid duplication by construction instead of trying to detect
+    // it after the fact - the cover gets the first sentence, the rest become points.
+    coverText = allPoints.length > 1 ? allPoints[0] : (article.summary || magazine.tagline);
+    bodyPoints = allPoints.length > 1 ? allPoints.slice(1) : [];
+  }
+
+  cards.push({ type: 'cover', label: 'COVER', title: article.title, text: coverText, custom: null, aiImage: null, aiState: 'idle' });
 
   // Merge points into at most 2 body cards so the whole set stays at 3-4 cards total.
-  // Also drop any point that's basically the same text as the cover summary (happens when
-  // a short Naver snippet only has one sentence total) so we don't show the same content twice.
-  const normalize = (s) => s.replace(/\s+/g, '').replace(/[.!?…]+$/, '');
-  const coverText = normalize(article.summary || '');
-  const uniquePoints = [...new Set((article.points || []).map((p) => p.trim()).filter(Boolean))]
-    // drop a point if it's the same as the cover, OR if the cover summary already
-    // contains that whole sentence (common when summary = points[0] + points[1] verbatim)
-    .filter((p) => {
-      const np = normalize(p);
-      return np !== coverText && !(np.length > 8 && coverText.includes(np));
-    });
-  const mid = Math.ceil(uniquePoints.length / 2);
-  const groups = [uniquePoints.slice(0, mid), uniquePoints.slice(mid)].filter((g) => g.length > 0);
+  const mid = Math.ceil(bodyPoints.length / 2);
+  const groups = [bodyPoints.slice(0, mid), bodyPoints.slice(mid)].filter((g) => g.length > 0);
   groups.forEach((g, gi) => {
     const body = g.map((p) => `• ${p}`).join('\n');
     cards.push({ type: 'body', label: `POINT ${gi + 1}`, title: g[0], text: body, custom: null, aiImage: null, aiState: 'idle' });
@@ -166,7 +172,7 @@ export default function Home() {
       });
       const data = await res.json();
       if (data.mode === 'live' && data.summary && data.points) {
-        const cleaned = { ...a, summary: data.summary, points: data.points };
+        const cleaned = { ...a, summary: data.summary, points: data.points, cleaned: true };
         setArticle(cleaned);
         setCards(buildCards(cleaned, magazine));
         showToast('AI로 카드 내용을 다듬었어요');
