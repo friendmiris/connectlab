@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { CATEGORIES, KEYWORDS } from '../lib/mockArticles';
 
 const IMG_MODES = [
@@ -109,6 +109,33 @@ export default function Home() {
   const [sourceKind, setSourceKind] = useState('news'); // news | youtube | google
   const [sort, setSort] = useState('popular'); // popular | recent
   const [searchMode, setSearchMode] = useState(null); // 'live' | 'demo'
+  const [scraps, setScraps] = useState([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('clipping_scraps');
+      if (saved) setScraps(JSON.parse(saved));
+    } catch (e) {
+      // localStorage unavailable or corrupted - just start empty
+    }
+  }, []);
+
+  function toggleScrap(article) {
+    setScraps((prev) => {
+      const exists = prev.some((a) => a.id === article.id);
+      const next = exists ? prev.filter((a) => a.id !== article.id) : [article, ...prev];
+      try {
+        localStorage.setItem('clipping_scraps', JSON.stringify(next));
+      } catch (e) {
+        // storage full or unavailable - keep the in-memory state anyway
+      }
+      return next;
+    });
+  }
+
+  function isScrapped(id) {
+    return scraps.some((a) => a.id === id);
+  }
   const [searchError, setSearchError] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -323,7 +350,10 @@ export default function Home() {
           </div>
           <nav className="masthead-nav">
             <button className="nav-btn ghost" onClick={() => { setDraftMag(magazine); setSettingsOpen(true); }}>매거진 설정</button>
-            <button className="nav-btn active" onClick={() => setView('home')}>홈</button>
+            <button className={'nav-btn ghost' + (view === 'scraps' ? ' active' : '')} onClick={() => setView('scraps')}>
+              스크랩{scraps.length > 0 ? ` (${scraps.length})` : ''}
+            </button>
+            <button className={'nav-btn' + (view === 'home' ? ' active' : '')} onClick={() => setView('home')}>홈</button>
           </nav>
         </div>
       </header>
@@ -423,6 +453,52 @@ export default function Home() {
                   return (
                     <div className="clip-card" key={a.id}>
                       <div className="tape" style={{ background: c.color }} />
+                      <button
+                        className="scrap-btn"
+                        onClick={() => toggleScrap(a)}
+                        aria-label={isScrapped(a.id) ? '스크랩 해제' : '스크랩'}
+                        title={isScrapped(a.id) ? '스크랩 해제' : '스크랩'}
+                      >
+                        {isScrapped(a.id) ? '★' : '☆'}
+                      </button>
+                      <div className="clip-source"><span>{a.source}</span><span>{a.date}</span></div>
+                      <h3>{a.title}</h3>
+                      <p className="clip-summary">{a.summary}</p>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <button className="clip-make" onClick={() => openEditor(a)}>카드뉴스 만들기 →</button>
+                        {a.link && (
+                          <a href={a.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--ink-soft)', textDecoration: 'underline' }}>
+                            원문 보기 ↗
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {view === 'scraps' && (
+          <>
+            <div className="results-head">
+              <div>
+                <button className="back-link" onClick={() => setView('home')}>← 홈으로</button>
+                <h2 className="serif" style={{ marginTop: 6 }}>스크랩한 기사</h2>
+              </div>
+              <div className="results-count">{scraps.length}건</div>
+            </div>
+            {scraps.length === 0 ? (
+              <div className="empty-state">아직 스크랩한 기사가 없어요. 검색 결과에서 ☆ 버튼을 눌러 저장해보세요.</div>
+            ) : (
+              <div className="clip-grid">
+                {scraps.map((a) => {
+                  const c = catInfo(a.cat) || catInfo('issue');
+                  return (
+                    <div className="clip-card" key={a.id}>
+                      <div className="tape" style={{ background: c.color }} />
+                      <button className="scrap-btn" onClick={() => toggleScrap(a)} aria-label="스크랩 해제" title="스크랩 해제">★</button>
                       <div className="clip-source"><span>{a.source}</span><span>{a.date}</span></div>
                       <h3>{a.title}</h3>
                       <p className="clip-summary">{a.summary}</p>

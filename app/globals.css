@@ -81,6 +81,8 @@ main{max-width:1120px; margin:0 auto; padding:0 24px 120px;}
   padding:20px 18px 18px; display:flex; flex-direction:column; gap:10px; transition:transform .15s;}
 .clip-card:hover{transform:translateY(-3px);}
 .tape{position:absolute; top:-10px; left:18px; width:58px; height:20px; transform:rotate(-4deg); opacity:0.92; box-shadow:0 1px 2px rgba(0,0,0,0.15);}
+.scrap-btn{position:absolute; top:8px; right:10px; border:none; background:transparent; font-size:20px; line-height:1; color:var(--gold); cursor:pointer; padding:4px;}
+.scrap-btn:hover{transform:scale(1.15);}
 .clip-source{font-size:11px; color:var(--ink-soft); display:flex; justify-content:space-between;}
 .clip-card h3{font-size:16.5px; line-height:1.4; margin:0; font-weight:700;}
 .clip-summary{font-size:12.5px; color:var(--ink-soft); line-height:1.65; margin:0; flex:1;}
