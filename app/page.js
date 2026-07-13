@@ -82,7 +82,12 @@ function buildCards(article, magazine) {
   const normalize = (s) => s.replace(/\s+/g, '').replace(/[.!?…]+$/, '');
   const coverText = normalize(article.summary || '');
   const uniquePoints = [...new Set((article.points || []).map((p) => p.trim()).filter(Boolean))]
-    .filter((p) => normalize(p) !== coverText);
+    // drop a point if it's the same as the cover, OR if the cover summary already
+    // contains that whole sentence (common when summary = points[0] + points[1] verbatim)
+    .filter((p) => {
+      const np = normalize(p);
+      return np !== coverText && !(np.length > 8 && coverText.includes(np));
+    });
   const mid = Math.ceil(uniquePoints.length / 2);
   const groups = [uniquePoints.slice(0, mid), uniquePoints.slice(mid)].filter((g) => g.length > 0);
   groups.forEach((g, gi) => {
@@ -106,6 +111,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   const [article, setArticle] = useState(null);
+  const [captionOverride, setCaptionOverride] = useState(null);
   const [cards, setCards] = useState([]);
   const [imageMode, setImageMode] = useState('ai');
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -146,12 +152,17 @@ export default function Home() {
   async function openEditor(a) {
     setArticle(a);
     setCards(buildCards(a, magazine));
+    setCaptionOverride(null);
     setView('editor');
     try {
       const res = await fetch('/api/cleanup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: a.title, summary: a.summary }),
+        body: JSON.stringify({
+          title: a.title,
+          summary: a.summary,
+          videoId: a.kind === 'youtube' ? a.id.replace(/^yt-/, '') : null,
+        }),
       });
       const data = await res.json();
       if (data.mode === 'live' && data.summary && data.points) {
@@ -499,8 +510,28 @@ export default function Home() {
                     </div>
                     <div className="card-body">
                       <div className="card-cat" style={{ color: card.catColor }}>{card.catLabel.toUpperCase()} · {magazine.name}</div>
-                      <div className="card-title">{card.title}</div>
-                      <div className="card-text">{card.text}</div>
+                      <div
+                        className="card-title"
+                        contentEditable
+                        suppressContentEditableWarning
+                        onBlur={(e) => {
+                          const val = e.currentTarget.innerText;
+                          setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, title: val } : c)));
+                        }}
+                      >
+                        {card.title}
+                      </div>
+                      <div
+                        className="card-text"
+                        contentEditable
+                        suppressContentEditableWarning
+                        onBlur={(e) => {
+                          const val = e.currentTarget.innerText;
+                          setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, text: val } : c)));
+                        }}
+                      >
+                        {card.text}
+                      </div>
                       <div className="card-foot"><span>{article.source}</span><span>{article.date}</span></div>
                     </div>
                   </div>
@@ -525,10 +556,13 @@ export default function Home() {
 
             <div className="caption-box">
               <h3>캡션 &amp; 해시태그</h3>
-              <textarea readOnly value={`${article.title}\n\n${article.summary}\n\n${article.tag} ${magazine.hashtags}\n(출처: ${article.source})`} />
+              <textarea
+                value={captionOverride ?? `${article.title}\n\n${article.summary}\n\n${article.tag} ${magazine.hashtags}\n(출처: ${article.source})`}
+                onChange={(e) => setCaptionOverride(e.target.value)}
+              />
               <div className="caption-foot">
                 <button className="btn" onClick={() => {
-                  navigator.clipboard.writeText(`${article.title}\n\n${article.summary}\n\n${article.tag} ${magazine.hashtags}\n(출처: ${article.source})`);
+                  navigator.clipboard.writeText(captionOverride ?? `${article.title}\n\n${article.summary}\n\n${article.tag} ${magazine.hashtags}\n(출처: ${article.source})`);
                   showToast('캡션이 복사됐어요');
                 }}>전체 복사</button>
               </div>
