@@ -85,6 +85,23 @@ async function searchNaver({ query, sort, category, catLabel }) {
 }
 
 // ---------- YouTube ----------
+function cleanDescription(text) {
+  return text
+    .replace(/https?:\/\/\S+/g, '') // strip URLs (promo links, not real content)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => {
+      if (!line) return false;
+      // drop lines that are just hashtags/emoji with no real sentence content
+      const withoutHashtags = line.replace(/#\S+/g, '').trim();
+      return withoutHashtags.length > 3;
+    })
+    .join(' ')
+    .replace(/#\S+/g, '') // strip any remaining inline hashtags
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 async function searchYouTube({ query, sort }) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) return null;
@@ -112,7 +129,7 @@ async function searchYouTube({ query, sort }) {
     const vid = it.id.videoId;
     const stats = statsById[vid] || {};
     const views = stats.viewCount ? Number(stats.viewCount).toLocaleString('ko-KR') + '회' : '';
-    const summary = stripTags(it.snippet.description || '');
+    const summary = cleanDescription(stripTags(it.snippet.description || ''));
     return {
       id: `yt-${vid}`,
       kind: 'youtube',
@@ -121,7 +138,7 @@ async function searchYouTube({ query, sort }) {
       source: it.snippet.channelTitle,
       date: it.snippet.publishedAt ? new Date(it.snippet.publishedAt).toLocaleDateString('ko-KR') : '',
       title: stripTags(it.snippet.title),
-      summary: summary || (views ? `조회수 ${views}` : ''),
+      summary: summary || (views ? `조회수 ${views}` : '영상 설명이 제공되지 않았어요.'),
       points: splitToPoints(summary || it.snippet.title),
       tag: views ? `#조회수${views}` : '#유튜브',
       link: `https://www.youtube.com/watch?v=${vid}`,
@@ -165,12 +182,17 @@ export async function GET(request) {
   const sort = searchParams.get('sort') || 'popular'; // popular | recent
 
   const catLabel = CATEGORIES.find(c => c.id === category)?.label || '';
+  // YouTube's search doesn't have Naver's Korean-news context, so a bare "IT" reads as the
+  // English pronoun "it" and pulls in totally unrelated globally popular videos. Use a less
+  // ambiguous label for YouTube queries specifically.
+  const youtubeCatLabel = category === 'it' ? 'IT 기술' : catLabel;
   const query = [catLabel, keyword].filter(Boolean).join(' ') || catLabel || '뉴스';
+  const youtubeQuery = [youtubeCatLabel, keyword].filter(Boolean).join(' ') || youtubeCatLabel || '뉴스';
 
   try {
     let articles = null;
     if (source === 'news') articles = await searchNaver({ query, sort, category, catLabel });
-    else if (source === 'youtube') articles = await searchYouTube({ query, sort });
+    else if (source === 'youtube') articles = await searchYouTube({ query: youtubeQuery, sort });
     else if (source === 'google') articles = await searchGoogle({ query, sort });
 
     if (articles) {
