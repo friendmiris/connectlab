@@ -192,6 +192,7 @@ export default function Home() {
           title: a.title,
           summary: a.summary,
           videoId: a.kind === 'youtube' ? a.id.replace(/^yt-/, '') : null,
+          link: a.kind === 'news' ? a.link : null,
         }),
       });
       const data = await res.json();
