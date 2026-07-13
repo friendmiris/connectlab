@@ -5,6 +5,11 @@ export const metadata = {
   description: '뷰티·패션·IT·인문학·경제·시사 기사를 골라 AI 카드뉴스를 자동으로 만들어보세요.',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="ko">

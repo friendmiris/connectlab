@@ -559,7 +559,7 @@ export default function Home() {
               </div>
               <div className="editor-actions">
                 <button className="btn" onClick={regen}>🔄 다시 생성</button>
-                <button className="btn primary" disabled={bulkLoading || cards.some((c) => c.aiState === 'loading' || c.stockState === 'loading')} onClick={downloadZip}>⬇ 전체 ZIP 다운로드</button>
+                <button className="btn primary" onClick={downloadZip}>⬇ 전체 ZIP 다운로드</button>
               </div>
             </div>
 
@@ -670,7 +670,7 @@ export default function Home() {
                       </button>
                     )}
                     <button className="tool-btn" onClick={() => document.getElementById('file-' + idx).click()}>이미지 업로드</button>
-                    <button className="tool-btn" disabled={card.aiState === 'loading' || card.stockState === 'loading'} onClick={() => downloadCard(idx)}>PNG 다운로드</button>
+                    <button className="tool-btn" onClick={() => downloadCard(idx)}>PNG 다운로드</button>
                   </div>
                   <input type="file" accept="image/*" id={'file-' + idx} onChange={(e) => e.target.files[0] && uploadImage(idx, e.target.files[0])} />
                 </div>
