@@ -40,7 +40,12 @@ export async function POST(request) {
     if (!parsed.summary || !Array.isArray(parsed.points)) {
       throw new Error('unexpected response shape');
     }
-    return Response.json({ mode: 'live', summary: parsed.summary, points: parsed.points });
+    const clean = (s) => s.replace(/[.…]{2,}\s*$/, '').trim();
+    return Response.json({
+      mode: 'live',
+      summary: clean(parsed.summary),
+      points: parsed.points.map(clean),
+    });
   } catch (err) {
     return Response.json({ mode: 'demo', summary: null, points: null });
   }

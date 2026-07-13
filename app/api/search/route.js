@@ -11,16 +11,20 @@ function stripTags(str = '') {
     .replace(/&nbsp;/g, ' ');
 }
 
+function stripTrailingEllipsis(text) {
+  return text.replace(/[.…]{2,}\s*$/, '').trim();
+}
+
 function splitToPoints(text) {
   const parts = text
     .split(/(?<=[.!?])\s+/)
-    .map(s => s.trim())
+    .map(s => stripTrailingEllipsis(s.trim()))
     .filter(Boolean)
     // drop a trailing fragment that's just Naver's own "..." truncation marker with no real content
-    .filter(s => s.replace(/\.+$/, '').trim().length > 0);
+    .filter(s => s.length > 0);
   // IMPORTANT: never pad short results by repeating the last sentence - that was producing
   // duplicate-looking cards when a Naver snippet only had one real sentence in it.
-  return parts.length ? parts.slice(0, 4) : [text];
+  return parts.length ? parts.slice(0, 4) : [stripTrailingEllipsis(text)];
 }
 
 // ---------- Naver News ----------
@@ -66,7 +70,7 @@ async function searchNaver({ query, sort, category, catLabel }) {
   const data = await res.json();
   const mapped = (data.items || []).map((item, i) => {
     const title = stripTags(item.title);
-    const summary = stripTags(item.description);
+    const summary = stripTrailingEllipsis(stripTags(item.description));
     return {
       id: `naver-${Date.now()}-${i}`,
       kind: 'news',
@@ -129,7 +133,7 @@ async function searchYouTube({ query, sort }) {
     const vid = it.id.videoId;
     const stats = statsById[vid] || {};
     const views = stats.viewCount ? Number(stats.viewCount).toLocaleString('ko-KR') + '회' : '';
-    const summary = cleanDescription(stripTags(it.snippet.description || ''));
+    const summary = stripTrailingEllipsis(cleanDescription(stripTags(it.snippet.description || '')));
     return {
       id: `yt-${vid}`,
       kind: 'youtube',

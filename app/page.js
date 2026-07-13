@@ -91,17 +91,14 @@ function buildCards(article, magazine) {
     bodyPoints = allPoints.length > 1 ? allPoints.slice(1) : [];
   }
 
-  cards.push({ type: 'cover', label: 'COVER', title: article.title, text: coverText, custom: null, aiImage: null, aiState: 'idle' });
+  cards.push({ type: 'cover', label: 'HOOK', title: article.title, text: coverText, custom: null, aiImage: null, aiState: 'idle' });
 
-  // Merge points into at most 2 body cards so the whole set stays at 3-4 cards total.
-  const mid = Math.ceil(bodyPoints.length / 2);
-  const groups = [bodyPoints.slice(0, mid), bodyPoints.slice(mid)].filter((g) => g.length > 0);
-  groups.forEach((g, gi) => {
-    const body = g.map((p) => `• ${p}`).join('\n');
-    cards.push({ type: 'body', label: `POINT ${gi + 1}`, title: g[0], text: body, custom: null, aiImage: null, aiState: 'idle' });
+  // Up to 3 body cards, one point each - matches the HOOK / BODY 1-2-3 / 결론 structure.
+  bodyPoints.slice(0, 3).forEach((p, i) => {
+    cards.push({ type: 'body', label: `BODY ${i + 1}`, title: `포인트 ${i + 1}`, text: p, custom: null, aiImage: null, aiState: 'idle' });
   });
 
-  cards.push({ type: 'outro', label: 'OUTRO', title: '저장하고 오래 보기', text: `${article.tag}  ${magazine.hashtags}`, custom: null, aiImage: null, aiState: 'idle' });
+  cards.push({ type: 'outro', label: '결론', title: '저장하고 오래 보기', text: `${article.tag}  ${magazine.hashtags}`, custom: null, aiImage: null, aiState: 'idle' });
   return cards.map((c2) => ({ ...c2, catColor: c.color, catLabel: c.label }));
 }
 
