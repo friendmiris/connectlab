@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { CATEGORIES, KEYWORDS } from '../lib/mockArticles';
+import { supabase } from '../lib/supabaseClient';
 
 const IMG_MODES = [
   { id: 'ai', label: '🖌 AI 일러스트', hint: '카드마다 "AI 일러스트 생성" 버튼을 누르면 진짜 이미지가 생성돼요. 키 없이 무료(Pollinations.ai)로 동작하고, OPENAI_API_KEY를 넣으면 더 고품질 유료 생성으로 바뀌어요.' },
@@ -131,15 +132,71 @@ export default function Home() {
   const [sort, setSort] = useState('popular'); // popular | recent
   const [searchMode, setSearchMode] = useState(null); // 'live' | 'demo'
   const [scraps, setScraps] = useState([]);
+  const [user, setUser] = useState(null);
+  const [loginEmailInput, setLoginEmailInput] = useState('');
+  const [loginSent, setLoginSent] = useState(false);
 
   useEffect(() => {
+    let localScraps = [];
     try {
       const saved = localStorage.getItem('clipping_scraps');
-      if (saved) setScraps(JSON.parse(saved));
+      if (saved) localScraps = JSON.parse(saved);
+      setScraps(localScraps);
     } catch (e) {
       // localStorage unavailable or corrupted - just start empty
     }
+
+    if (!supabase) return; // Supabase not configured - stay in local-only mode
+
+    async function handleSession(session) {
+      if (!session) {
+        setUser(null);
+        return;
+      }
+      const u = session.user;
+      setUser(u);
+      const { data } = await supabase
+        .from('user_favorites')
+        .select('favorites')
+        .eq('user_id', u.id)
+        .maybeSingle();
+      if (data && data.favorites && data.favorites.length) {
+        setScraps(data.favorites);
+        try { localStorage.setItem('clipping_scraps', JSON.stringify(data.favorites)); } catch (e) {}
+      } else if (localScraps.length) {
+        // first login on this device with existing local scraps - push them up as the starting cloud copy
+        await supabase
+          .from('user_favorites')
+          .upsert({ user_id: u.id, favorites: localScraps, updated_at: new Date().toISOString() });
+      }
+      showToast(`${u.email} 로 로그인됐어요`);
+    }
+
+    supabase.auth.getSession().then(({ data }) => handleSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => handleSession(session));
+    return () => listener.subscription.unsubscribe();
   }, []);
+
+  async function requestLoginLink() {
+    if (!supabase) { showToast('Supabase가 아직 설정 안 돼있어요'); return; }
+    const email = loginEmailInput.trim();
+    if (!email.includes('@')) { showToast('이메일 형식을 확인해주세요'); return; }
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined },
+    });
+    if (error) showToast('로그인 링크 발송 실패: ' + error.message);
+    else {
+      setLoginSent(true);
+      showToast('로그인 링크를 보냈어요, 메일함을 확인해주세요');
+    }
+  }
+
+  function logout() {
+    if (supabase) supabase.auth.signOut();
+    setUser(null);
+    showToast('로그아웃했어요');
+  }
 
   function toggleScrap(article) {
     setScraps((prev) => {
@@ -149,6 +206,12 @@ export default function Home() {
         localStorage.setItem('clipping_scraps', JSON.stringify(next));
       } catch (e) {
         // storage full or unavailable - keep the in-memory state anyway
+      }
+      if (supabase && user) {
+        supabase
+          .from('user_favorites')
+          .upsert({ user_id: user.id, favorites: next, updated_at: new Date().toISOString() })
+          .then(({ error }) => { if (error) showToast('동기화 실패: ' + error.message); });
       }
       return next;
     });
@@ -515,9 +578,37 @@ export default function Home() {
               </div>
               <div className="results-count">{scraps.length}건</div>
             </div>
-            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: -8, marginBottom: 20, lineHeight: 1.6 }}>
-              ⚠ 스크랩은 이 브라우저에만 저장돼요. 방문 기록·캐시를 지우면 함께 사라지고, 시크릿(비공개) 모드에서는 저장되지 않아요. 다른 기기·다른 브라우저에서는 보이지 않아요.
-            </p>
+
+            <div className="caption-box" style={{ marginBottom: 24 }}>
+              <h3>이메일로 로그인</h3>
+              {user ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 13.5 }}>✓ <b>{user.email}</b> 로 로그인됨 — 다른 기기에서도 같은 이메일로 로그인하면 이 스크랩이 그대로 보여요.</span>
+                  <button className="btn" onClick={logout}>로그아웃</button>
+                </div>
+              ) : (
+                <>
+                  <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', margin: '0 0 12px', lineHeight: 1.6 }}>
+                    비밀번호 없이, 이메일로 받은 링크만 누르면 로그인돼요. 로그인하면 스크랩이 안전하게 저장돼서 다른 기기에서도 같은 이메일로 다시 볼 수 있어요. 로그인 안 하면 이 브라우저에만 저장돼요.
+                  </p>
+                  {loginSent ? (
+                    <p style={{ fontSize: 13, fontWeight: 700, color: '#1F9D74' }}>메일함(스팸함도)을 확인해서 링크를 눌러주세요.</p>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        className="search-input"
+                        placeholder="이메일 주소 입력"
+                        value={loginEmailInput}
+                        onChange={(e) => setLoginEmailInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && requestLoginLink()}
+                      />
+                      <button className="btn primary" onClick={requestLoginLink}>로그인 링크 받기</button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
             {scraps.length === 0 ? (
               <div className="empty-state">아직 스크랩한 기사가 없어요. 검색 결과에서 ☆ 버튼을 눌러 저장해보세요.</div>
             ) : (

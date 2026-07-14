@@ -113,6 +113,45 @@ git push -u origin main
 
 이 기능은 이미지 생성과는 무관해요 — 텍스트만 다루고 이미지를 생성하지 않아요. 이미지가 필요하면 5번(AI 일러스트)이나 6번(스톡 사진) 섹션을 참고하세요.
 
+## 8. 로그인 + 스크랩을 다른 기기에서도 보기 (Supabase)
+
+이메일로 로그인하면 스크랩이 Supabase 데이터베이스에 안전하게 저장되고, 다른 기기에서도 같은 이메일로 로그인하면 그대로 보여요. Row Level Security(RLS)로 본인 데이터만 본인이 볼 수 있게 보호돼요.
+
+1. https://supabase.com 접속 → 가입(구글/깃허브 계정으로 가능) → **New Project** 생성
+2. 프로젝트 생성 후, 왼쪽 메뉴 **SQL Editor**에서 아래 SQL 실행:
+
+```sql
+create table user_favorites (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  favorites jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table user_favorites enable row level security;
+
+create policy "Users can view their own favorites"
+on user_favorites for select
+using (auth.uid() = user_id);
+
+create policy "Users can insert their own favorites"
+on user_favorites for insert
+with check (auth.uid() = user_id);
+
+create policy "Users can update their own favorites"
+on user_favorites for update
+using (auth.uid() = user_id);
+```
+
+3. 왼쪽 메뉴 **Project Settings(톱니바퀴) → API**에서 **Project URL**과 **anon public key** 확인
+4. Vercel 환경변수에 추가:
+   - `NEXT_PUBLIC_SUPABASE_URL` = Project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = anon public key
+5. **Deployments → Redeploy**
+
+**Authentication → Providers**에서 **Email**이 켜져 있으면(기본값) 별도 설정 없이 매직링크(비밀번호 없는 이메일 로그인) 발송까지 Supabase가 알아서 처리해요 — 이메일 발송 서비스를 따로 연결할 필요 없어요.
+
+설정 안 해도 앱은 정상 동작해요 — 그럴 땐 로그인 없이, 스크랩이 이 브라우저에만 저장돼요.
+
 ## 폴더 구조
 
 ```
