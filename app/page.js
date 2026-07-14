@@ -135,6 +135,7 @@ export default function Home() {
   const [user, setUser] = useState(null);
   const [loginEmailInput, setLoginEmailInput] = useState('');
   const [loginSent, setLoginSent] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   useEffect(() => {
     let localScraps = [];
@@ -438,6 +439,9 @@ export default function Home() {
             <span className="scissor">✂︎</span>CLIPPING<span className="logo-sub">&nbsp;— 나만의 매거진</span>
           </div>
           <nav className="masthead-nav">
+            <button className="nav-btn ghost" onClick={() => setLoginModalOpen(true)}>
+              {user ? `${user.email.split('@')[0]}님` : '로그인'}
+            </button>
             <button className="nav-btn ghost" onClick={() => { setDraftMag(magazine); setSettingsOpen(true); }}>매거진 설정</button>
             <button className={'nav-btn ghost' + (view === 'scraps' ? ' active' : '')} onClick={() => setView('scraps')}>
               스크랩{scraps.length > 0 ? ` (${scraps.length})` : ''}
@@ -580,33 +584,14 @@ export default function Home() {
             </div>
 
             <div className="caption-box" style={{ marginBottom: 24 }}>
-              <h3>이메일로 로그인</h3>
-              {user ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 13.5 }}>✓ <b>{user.email}</b> 로 로그인됨 — 다른 기기에서도 같은 이메일로 로그인하면 이 스크랩이 그대로 보여요.</span>
-                  <button className="btn" onClick={logout}>로그아웃</button>
-                </div>
-              ) : (
-                <>
-                  <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', margin: '0 0 12px', lineHeight: 1.6 }}>
-                    비밀번호 없이, 이메일로 받은 링크만 누르면 로그인돼요. 로그인하면 스크랩이 안전하게 저장돼서 다른 기기에서도 같은 이메일로 다시 볼 수 있어요. 로그인 안 하면 이 브라우저에만 저장돼요.
-                  </p>
-                  {loginSent ? (
-                    <p style={{ fontSize: 13, fontWeight: 700, color: '#1F9D74' }}>메일함(스팸함도)을 확인해서 링크를 눌러주세요.</p>
-                  ) : (
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <input
-                        className="search-input"
-                        placeholder="이메일 주소 입력"
-                        value={loginEmailInput}
-                        onChange={(e) => setLoginEmailInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && requestLoginLink()}
-                      />
-                      <button className="btn primary" onClick={requestLoginLink}>로그인 링크 받기</button>
-                    </div>
-                  )}
-                </>
-              )}
+              <h3>다른 기기에서도 보기</h3>
+              <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', margin: 0, lineHeight: 1.6 }}>
+                {user ? (
+                  <>✓ <b>{user.email}</b> 로 로그인돼 있어요 — 다른 기기에서도 같은 이메일로 로그인하면 이 스크랩이 그대로 보여요.</>
+                ) : (
+                  <>오른쪽 위 <b>"로그인"</b> 버튼으로 이메일 로그인하면, 다른 기기에서도 같은 스크랩을 볼 수 있어요. 로그인 안 하면 이 브라우저에만 저장돼요.</>
+                )}
+              </p>
             </div>
 
             {scraps.length === 0 ? (
@@ -816,6 +801,44 @@ export default function Home() {
               <button className="btn" onClick={() => setSettingsOpen(false)}>취소</button>
               <button className="btn primary" onClick={saveSettings}>저장</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {loginModalOpen && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setLoginModalOpen(false)}>
+          <div className="modal">
+            <h3 className="serif">{user ? '내 계정' : '이메일로 로그인'}</h3>
+            {user ? (
+              <>
+                <p className="sub">✓ <b>{user.email}</b> 로 로그인돼 있어요. 다른 기기에서도 같은 이메일로 로그인하면 스크랩이 그대로 보여요.</p>
+                <div className="modal-actions">
+                  <button className="btn" onClick={() => setLoginModalOpen(false)}>닫기</button>
+                  <button className="btn primary" onClick={() => { logout(); setLoginModalOpen(false); }}>로그아웃</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="sub">비밀번호 없이, 이메일로 받은 링크만 누르면 로그인돼요. 로그인하면 스크랩이 다른 기기에서도 똑같이 보여요.</p>
+                {loginSent ? (
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#1F9D74' }}>메일함(스팸함도)을 확인해서 링크를 눌러주세요.</p>
+                ) : (
+                  <div className="field">
+                    <label>이메일 주소</label>
+                    <input
+                      type="text"
+                      value={loginEmailInput}
+                      onChange={(e) => setLoginEmailInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && requestLoginLink()}
+                    />
+                  </div>
+                )}
+                <div className="modal-actions">
+                  <button className="btn" onClick={() => setLoginModalOpen(false)}>닫기</button>
+                  {!loginSent && <button className="btn primary" onClick={requestLoginLink}>로그인 링크 받기</button>}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
