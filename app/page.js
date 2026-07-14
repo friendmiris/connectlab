@@ -134,7 +134,8 @@ export default function Home() {
   const [scraps, setScraps] = useState([]);
   const [user, setUser] = useState(null);
   const [loginEmailInput, setLoginEmailInput] = useState('');
-  const [loginSent, setLoginSent] = useState(false);
+  const [loginPasswordInput, setLoginPasswordInput] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   useEffect(() => {
@@ -178,18 +179,47 @@ export default function Home() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  async function requestLoginLink() {
-    if (!supabase) { showToast('Supabase가 아직 설정 안 돼있어요'); return; }
+  function validateEmailPassword() {
     const email = loginEmailInput.trim();
-    if (!email.includes('@')) { showToast('이메일 형식을 확인해주세요'); return; }
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined },
-    });
-    if (error) showToast('로그인 링크 발송 실패: ' + error.message);
-    else {
-      setLoginSent(true);
-      showToast('로그인 링크를 보냈어요, 메일함을 확인해주세요');
+    const password = loginPasswordInput;
+    if (!email.includes('@')) { showToast('이메일 형식을 확인해주세요'); return null; }
+    if (password.length < 6) { showToast('비밀번호는 6자 이상이어야 해요'); return null; }
+    return { email, password };
+  }
+
+  async function handleLogin() {
+    if (!supabase) { showToast('Supabase가 아직 설정 안 돼있어요'); return; }
+    const creds = validateEmailPassword();
+    if (!creds) return;
+    setAuthBusy(true);
+    const { error } = await supabase.auth.signInWithPassword(creds);
+    setAuthBusy(false);
+    if (error) {
+      showToast(error.message.includes('Invalid login') ? '이메일 또는 비밀번호가 틀렸어요' : '로그인 실패: ' + error.message);
+    } else {
+      setLoginModalOpen(false);
+      setLoginPasswordInput('');
+    }
+  }
+
+  async function handleSignup() {
+    if (!supabase) { showToast('Supabase가 아직 설정 안 돼있어요'); return; }
+    const creds = validateEmailPassword();
+    if (!creds) return;
+    setAuthBusy(true);
+    const { data, error } = await supabase.auth.signUp(creds);
+    setAuthBusy(false);
+    if (error) {
+      showToast(error.message.includes('already registered') ? '이미 가입된 이메일이에요, 로그인해주세요' : '회원가입 실패: ' + error.message);
+      return;
+    }
+    if (data.session) {
+      // Email confirmation is off in Supabase - signed in immediately.
+      setLoginModalOpen(false);
+      setLoginPasswordInput('');
+    } else {
+      // Email confirmation is required in Supabase settings.
+      showToast('가입 확인 메일을 보냈어요, 메일함을 확인해주세요');
     }
   }
 
@@ -808,10 +838,10 @@ export default function Home() {
       {loginModalOpen && (
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setLoginModalOpen(false)}>
           <div className="modal">
-            <h3 className="serif">{user ? '내 계정' : '이메일로 로그인'}</h3>
+            <h3 className="serif">즐겨찾기 동기화</h3>
             {user ? (
               <>
-                <p className="sub">✓ <b>{user.email}</b> 로 로그인돼 있어요. 다른 기기에서도 같은 이메일로 로그인하면 스크랩이 그대로 보여요.</p>
+                <p className="sub">✓ <b>{user.email}</b> 님으로 로그인됨 — 즐겨찾기가 실시간으로 저장/동기화되고 있어요.</p>
                 <div className="modal-actions">
                   <button className="btn" onClick={() => setLoginModalOpen(false)}>닫기</button>
                   <button className="btn primary" onClick={() => { logout(); setLoginModalOpen(false); }}>로그아웃</button>
@@ -819,23 +849,28 @@ export default function Home() {
               </>
             ) : (
               <>
-                <p className="sub">비밀번호 없이, 이메일로 받은 링크만 누르면 로그인돼요. 로그인하면 스크랩이 다른 기기에서도 똑같이 보여요.</p>
-                {loginSent ? (
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#1F9D74' }}>메일함(스팸함도)을 확인해서 링크를 눌러주세요.</p>
-                ) : (
-                  <div className="field">
-                    <label>이메일 주소</label>
-                    <input
-                      type="text"
-                      value={loginEmailInput}
-                      onChange={(e) => setLoginEmailInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && requestLoginLink()}
-                    />
-                  </div>
-                )}
+                <p className="sub">로그인하면 즐겨찾기가 클라우드에 저장돼서, 어느 기기에서 열어도 실시간으로 똑같이 보여요.</p>
+                <div className="field">
+                  <label>이메일</label>
+                  <input
+                    type="text"
+                    value={loginEmailInput}
+                    onChange={(e) => setLoginEmailInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                  />
+                </div>
+                <div className="field">
+                  <label>비밀번호</label>
+                  <input
+                    type="password"
+                    value={loginPasswordInput}
+                    onChange={(e) => setLoginPasswordInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                  />
+                </div>
                 <div className="modal-actions">
-                  <button className="btn" onClick={() => setLoginModalOpen(false)}>닫기</button>
-                  {!loginSent && <button className="btn primary" onClick={requestLoginLink}>로그인 링크 받기</button>}
+                  <button className="btn" disabled={authBusy} onClick={handleLogin}>로그인</button>
+                  <button className="btn primary" disabled={authBusy} onClick={handleSignup}>회원가입</button>
                 </div>
               </>
             )}
